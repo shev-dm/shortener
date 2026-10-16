@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Сокращатель ссылок</title>
+<style>
+  body { font-family: sans-serif; margin: 40px; }
+  button { padding: 8px 16px; margin-right: 8px; }
+  table { border-collapse: collapse; margin-top: 20px; }
+  td, th { border: 1px solid #999; padding: 6px 12px; }
+  #modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.4); }
+  #modal div { background: #fff; width: 400px; margin: 100px auto; padding: 20px; }
+  #modal input { width: 100%; padding: 6px; margin: 10px 0; box-sizing: border-box; }
+</style>
+</head>
+<body>
+<h1>Сокращатель ссылок</h1>
+<button onclick="loadLinks()">Показать все ссылки</button>
+<button onclick="openModal()">Сократить ссылку</button>
+
+<table id="table"></table>
+
+<div id="modal">
+  <div>
+    <h3>Сократить ссылку</h3>
+    <input id="url" placeholder="https://example.com/very/long/link">
+    <button onclick="shorten()">Сократить</button>
+    <button onclick="closeModal()">Закрыть</button>
+    <p id="result"></p>
+  </div>
+</div>
+
+<script>
+async function loadLinks() {
+  const links = await (await fetch('/api/links')).json();
+  let html = '<tr><th>Основная ссылка</th><th>Сокращённая</th><th>Время создания</th><th></th></tr>';
+  for (const l of links) {
+    html += `<tr><td>${l.original}</td><td><a href="${l.short}" target="_blank">${l.short}</a></td>
+             <td>${new Date(l.created_at).toLocaleString()}</td>
+             <td><button onclick="deleteLink('${l.code}')">Удалить</button></td></tr>`;
+  }
+  document.getElementById('table').innerHTML = html;
+}
+
+async function deleteLink(code) {
+  if (!confirm('Удалить ссылку?')) return;
+  await fetch('/api/links/' + code, {method: 'DELETE'});
+  loadLinks();
+}
+
+function openModal() {
+  document.getElementById('url').value = '';
+  document.getElementById('result').innerHTML = '';
+  document.getElementById('modal').style.display = 'block';
+}
+
+function closeModal() {
+  document.getElementById('modal').style.display = 'none';
+}
+
+async function shorten() {
+  const url = document.getElementById('url').value;
+  const resp = await fetch('/api/shorten', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({url})
+  });
+  if (!resp.ok) {
+    document.getElementById('result').textContent = 'Ошибка: ' + await resp.text();
+    return;
+  }
+  const l = await resp.json();
+  document.getElementById('result').innerHTML = `Короткая ссылка: <a href="${l.short}" target="_blank">${l.short}</a>`;
+}
+</script>
+</body>
+</html>
